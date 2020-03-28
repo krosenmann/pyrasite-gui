@@ -20,18 +20,18 @@
 # by John (J5) Palmieri, and licensed under the LGPLv2.1
 # http://git.gnome.org/browse/pygobject/tree/demos/gtk-demo/gtk-demo.py
 
-from __future__ import division
+from __future__ import division, print_function
 
 import os
 import sys
 import time
 import socket
-import psutil
 import logging
 import keyword
 import tokenize
 import threading
 import subprocess
+import psutil
 
 from os.path import join, abspath, dirname
 from random import randrange
@@ -39,14 +39,22 @@ try:
     from meliae import loader
 except:
     print("Unable to import meliae. Object memory analysis disabled.")
+import gi
+
+gi.require_version('Gtk', '3.0')
+gi.require_version('WebKit2', '4.0')
+
 try:
-    from gi.repository import GLib, GObject, Pango, Gtk, WebKit
+    from gi.repository import GLib, GObject, Pango, Gtk
+    from gi.repository import WebKit2
 except ImportError:
     print("Unable to find pygobject3. Please install the 'pygobject3' ")
     print("package on Fedora, or 'python-gobject-dev' on Ubuntu.")
     sys.exit(1)
 
 import pyrasite
+
+
 
 log = logging.getLogger('pyrasite')
 
@@ -124,8 +132,8 @@ class PyrasiteWindow(Gtk.Window):
         hbox.pack_start(main_vbox, True, True, 0)
 
         self.info_html = ''
-        self.info_view = WebKit.WebView()
-        self.info_view.load_string(self.info_html, "text/html", "utf-8", '#')
+        self.info_view = WebKit2.WebView()
+        self.info_view.load_html(self.info_html, '#')
 
         info_window = Gtk.ScrolledWindow(hadjustment=None, vadjustment=None)
         info_window.set_policy(Gtk.PolicyType.AUTOMATIC,
@@ -274,9 +282,8 @@ class PyrasiteWindow(Gtk.Window):
                 Gtk.Label.new_with_mnemonic('_Call Graph'))
 
         self.details_html = ''
-        self.details_view = WebKit.WebView()
-        self.details_view.load_string(self.details_html, "text/html",
-                                      "utf-8", '#')
+        self.details_view = WebKit2.WebView()
+        self.details_view.load_html(self.details_html, '#')
 
         details_window = Gtk.ScrolledWindow(hadjustment=None,
                                             vadjustment=None)
@@ -438,32 +445,31 @@ class PyrasiteWindow(Gtk.Window):
         </div>
         </body></html>
         """
-
-        self.info_view.load_string(self.info_html, "text/html", "utf-8", '#')
-
+        self.info_view.load_html(self.info_html, '#')
         # The Details tab
         self.details_html = """
         <style>
-        body {font: normal 12px/150%% Arial, Helvetica, sans-serif;}
+        body {{font: normal 12px/150%% Arial, Helvetica, sans-serif;}}
         </style>
-        <h2>%s</h2>
+        <h2>{}</h2>
         <ul>
-            <li><b>status:</b> %s</li>
-            <li><b>cwd:</b> %s</li>
-            <li><b>cmdline:</b> %s</li>
-            <li><b>terminal:</b> %s</li>
-            <li><b>created:</b> %s</li>
-            <li><b>username:</b> %s</li>
-            <li><b>uid:</b> %s</li>
-            <li><b>gid:</b> %s</li>
-            <li><b>nice:</b> %s</li>
+            <li><b>status:</b> {}</li>
+            <li><b>cwd:</b> {}</li>
+            <li><b>cmdline:</b> {}</li>
+            <li><b>terminal:</b> {}</li>
+            <li><b>created:</b> {}</li>
+            <li><b>username:</b> {}</li>
+            <li><b>uid:</b> {}</li>
+            <li><b>gid:</b> {}</li>
+            <li><b>nice:</b> {}</li>
         </ul>
-        """ % (self.proc.title, p.status, p.getcwd(), ' '.join(p.cmdline),
-               getattr(p, 'terminal', 'unknown'), time.ctime(p.create_time),
-               p.username, p.uids.real, p.gids.real, p.nice)
+        """.format(self.proc.title, p.status, p.cwd(),
+                   ' '.join(p.cmdline()),
+                   getattr(p, 'terminal', lambda: 'unknown')(),
+                   time.ctime(p.create_time()),
+                   p.username(), p.uids().real, p.gids().real, p.nice())
 
-        self.details_view.load_string(self.details_html, "text/html",
-                                      "utf-8", '#')
+        self.details_view.load_html(self.details_html, '#')
 
         if not self.resource_thread:
             self.resource_thread = ResourceUsagePoller(self.proc.pid)
@@ -478,12 +484,12 @@ class PyrasiteWindow(Gtk.Window):
 
     def inject_js(self):
         log.debug("Injecting jQuery")
-        self.info_view.execute_script(self.jquery_js)
-        self.info_view.execute_script(self.jquery_sparkline_js)
+        self.info_view.run_javascript(self.jquery_js)
+        self.info_view.run_javascript(self.jquery_sparkline_js)
 
     def render_resource_usage(self):
         """
-        Render our resource usage using jQuery+Sparklines in our WebKit view
+        Render our resource usage using jQuery+Sparklines in our WebKit2 view
         """
         global cpu_intervals, mem_intervals, cpu_details, mem_details
         global read_intervals, write_intervals, read_bytes, write_bytes
@@ -540,7 +546,7 @@ class PyrasiteWindow(Gtk.Window):
         script += """
             jQuery('#proc_title').text('%s %s');
         """ % (str(process_title).strip(), process_status)
-        self.info_view.execute_script(script)
+        self.info_view.run_javascript(script)
         return True
 
     def update_progress(self, fraction, text=None):
@@ -909,8 +915,8 @@ class ResourceUsagePoller(threading.Thread):
         if len(cpu_intervals) >= INTERVALS:
             cpu_intervals = cpu_intervals[1:]
         cpu_intervals.append(
-            self.process.get_cpu_percent(interval=POLL_INTERVAL))
-        cputimes = self.process.get_cpu_times()
+            self.process.cpu_percent(interval=POLL_INTERVAL))
+        cputimes = self.process.cpu_times()
         cpu_details = '%0.2f%% (%s user, %s system)' % (
                 cpu_intervals[-1], cputimes.user, cputimes.system)
 
@@ -918,10 +924,10 @@ class ResourceUsagePoller(threading.Thread):
         global mem_intervals, mem_details
         if len(mem_intervals) >= INTERVALS:
             mem_intervals = mem_intervals[1:]
-        mem_intervals.append(self.process.get_memory_info().rss)
-        meminfo = self.process.get_memory_info()
+        mem_intervals.append(self.process.memory_info().rss)
+        meminfo = self.process.memory_info()
         mem_details = '%0.2f%% (%s RSS, %s VMS)' % (
-                self.process.get_memory_percent(),
+                self.process.memory_percent(),
                 humanize_bytes(meminfo.rss),
                 humanize_bytes(meminfo.vms))
 
@@ -931,7 +937,7 @@ class ResourceUsagePoller(threading.Thread):
         if len(read_intervals) >= INTERVALS:
             read_intervals = read_intervals[1:]
             write_intervals = write_intervals[1:]
-        io = self.process.get_io_counters()
+        io = self.process.io_counters()
         read_since_last = io.read_bytes - read_bytes
         read_intervals.append(read_since_last)
         read_count = io.read_count
@@ -943,7 +949,7 @@ class ResourceUsagePoller(threading.Thread):
 
     def poll_threads(self):
         global thread_intervals
-        for thread in self.process.get_threads():
+        for thread in self.process.threads():
             if thread.id not in thread_intervals:
                 thread_intervals[thread.id] = []
                 thread_colors[thread.id] = get_color()
@@ -964,20 +970,20 @@ class ResourceUsagePoller(threading.Thread):
     def poll_connections(self):
         global open_connections
         connections = []
-        for i, conn in enumerate(self.process.get_connections()):
+        for i, conn in enumerate(self.process.connections()):
             if conn.type == socket.SOCK_STREAM:
-                type = 'TCP'
+                type_ = 'TCP'
             elif conn.type == socket.SOCK_DGRAM:
-                type = 'UDP'
+                type_ = 'UDP'
             else:
-                type = 'UNIX'
-            lip, lport = conn.local_address
-            if not conn.remote_address:
+                type_ = 'UNIX'
+            lip, lport = conn.laddr
+            if not conn.raddr:
                 rip = rport = '*'
             else:
-                rip, rport = conn.remote_address
+                rip, rport = conn.raddr
             connections.append({
-                'type': type,
+                'type': type_,
                 'status': conn.status,
                 'local': '%s:%s' % (lip, lport),
                 'remote': '%s:%s' % (rip, rport),
@@ -987,7 +993,7 @@ class ResourceUsagePoller(threading.Thread):
     def poll_files(self):
         global open_files
         files = []
-        for open_file in self.process.get_open_files():
+        for open_file in self.process.open_files():
             files.append(open_file.path)
         open_files = files
 
