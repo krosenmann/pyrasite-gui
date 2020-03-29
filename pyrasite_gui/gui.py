@@ -496,19 +496,19 @@ class PyrasiteWindow(Gtk.Window):
         global open_files, open_connections
         global process_title, process_status
         script = """
-            jQuery('#cpu_graph').sparkline(%s, {'height': 75, 'width': 250,
+            jQuery('#cpu_graph').sparkline(%s, {'height': 75, 'width': '48vw',
                 spotRadius: 3, fillColor: '#73d216', lineColor: '#4e9a06'});
-            jQuery('#mem_graph').sparkline(%s, {'height': 75, 'width': 250,
+            jQuery('#mem_graph').sparkline(%s, {'height': 75, 'width': '48vw',
                 lineColor: '#5c3566', fillColor: '#75507b',
                 minSpotColor: false, maxSpotColor: false, spotColor: '#f57900',
                 spotRadius: 3});
             jQuery('#cpu_details').text('%s');
             jQuery('#mem_details').text('%s');
-            jQuery('#read_graph').sparkline(%s, {'height': 75, 'width': 250,
+            jQuery('#read_graph').sparkline(%s, {'height': 75, 'width': '48vw',
                 lineColor: '#a40000', fillColor: '#cc0000',
                 minSpotColor: false, maxSpotColor: false, spotColor: '#729fcf',
                 spotRadius: 3});
-            jQuery('#write_graph').sparkline(%s, {'height': 75, 'width': 250,
+            jQuery('#write_graph').sparkline(%s, {'height': 75, 'width': '48vw',
                 lineColor: '#ce5c00', fillColor: '#f57900',
                 minSpotColor: false, maxSpotColor: false, spotColor: '#8ae234',
                 spotRadius: 3});
@@ -524,7 +524,7 @@ class PyrasiteWindow(Gtk.Window):
                     %s'lineColor': '#%s', 'fillColor': false, 'spotRadius': 3,
                     'spotColor': '#%s'});
             """ % (thread_intervals[thread], i != 0 and "'composite': true,"
-                   or "'height': 75, 'width': 575,", thread_colors[thread],
+                   or "'height': 75, 'width': '98vw',", thread_colors[thread],
                    thread_colors[thread])
 
         if open_files:
